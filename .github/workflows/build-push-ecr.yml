@@ -1,0 +1,52 @@
+name: Build and Push Docker Image to ECR
+
+on:
+  # Manually trigger or push to main branch
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write  # Needed for GitHub OIDC authentication
+
+    steps:
+      # 1️⃣ Checkout the code
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Configure AWS credentials using OIDC
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_OIDC_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3️⃣ Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4️⃣ Build and tag Docker image
+      - name: Build Docker Image
+        run: |
+          IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/my-app:${{ github.sha }}
+          echo "Building image $IMAGE_URI"
+          docker build -t $IMAGE_URI .
+
+      # 5️⃣ Push Docker image to ECR
+      - name: Push Docker Image
+        run: |
+          IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/my-app:${{ github.sha }}
+          docker push $IMAGE_URI
+
+      # 6️⃣ Optional: output image URI for downstream steps or workflows
+      - name: Set outputs
+        id: outputs
+        run: echo "image_uri=${{ steps.login-ecr.outputs.registry }}/my-app:${{ github.sha }}" >> $GITHUB_OUTPUT
