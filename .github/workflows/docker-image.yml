@@ -26,4 +26,4 @@ jobs:
       with:
         context: .
         push: true
-        tags: manoharsj/test_repo:latest
+        tags: manoharsj/dockerapp:$(date +%s)
